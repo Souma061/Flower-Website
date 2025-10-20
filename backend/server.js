@@ -25,7 +25,7 @@ app.post('/api/contact', async (req, res) => {
     }
 
     try {
-        // Create transporter
+        // Create transporter with timeout
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: Number(process.env.SMTP_PORT) || 587,
@@ -33,8 +33,16 @@ app.post('/api/contact', async (req, res) => {
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS
-            }
+            },
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 10000,
+            socketTimeout: 10000
         });
+
+        // Verify SMTP connection
+        console.log('🔄 Verifying SMTP connection...');
+        await transporter.verify();
+        console.log('✅ SMTP connection verified');
 
         // Email options
         const mailOptions = {
@@ -66,12 +74,26 @@ app.post('/api/contact', async (req, res) => {
         };
 
         // Send email
+        console.log('📧 Sending email...');
         await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent successfully!');
         res.status(200).json({ success: true, message: 'Email sent successfully!' });
 
     } catch (error) {
-        console.error('❌ Error sending email:', error);
-        res.status(500).json({ success: false, message: 'Failed to send email', error: error.message });
+        console.error('❌ Error sending email:', error.message);
+        console.error('Full error:', error);
+        
+        // Send more detailed error to client
+        let errorMessage = 'Failed to send email. ';
+        if (error.code === 'EAUTH') {
+            errorMessage += 'Invalid email credentials. Please check your SMTP settings.';
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+            errorMessage += 'Cannot connect to email server. Please try again later.';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        res.status(500).json({ success: false, message: errorMessage });
     }
 });
 
