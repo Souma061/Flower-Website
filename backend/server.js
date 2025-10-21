@@ -1,5 +1,5 @@
 import express from 'express';
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
@@ -9,6 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
+
+// Configure SendGrid
+if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
 const app = express();
 
@@ -36,29 +41,12 @@ app.post('/api/contact', async (req, res) => {
     }
 
     try {
-        // Create transporter with timeout
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            },
-            connectionTimeout: 10000, // 10 seconds
-            greetingTimeout: 10000,
-            socketTimeout: 10000
-        });
-
-        // Verify SMTP connection
-        console.log('🔄 Verifying SMTP connection...');
-        await transporter.verify();
-        console.log('✅ SMTP connection verified');
-
-        // Email options
-        const mailOptions = {
-            from: `"Website Contact Form" <${process.env.SMTP_USER}>`,
-            to: process.env.TO_EMAIL || process.env.SMTP_USER,
+        console.log('📧 Preparing to send email via SendGrid...');
+        
+        const msg = {
+            to: process.env.TO_EMAIL,
+            from: process.env.SENDGRID_FROM_EMAIL, // Must be verified in SendGrid
+            replyTo: email,
             subject: `New Contact Form: ${subject || 'No Subject'}`,
             text: `You have received a new message from your website contact form.\n\n` +
                   `Here are the details:\n` +
@@ -84,22 +72,17 @@ app.post('/api/contact', async (req, res) => {
             `
         };
 
-        // Send email
-        console.log('📧 Sending email...');
-        await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent successfully!');
+        await sgMail.send(msg);
+        console.log('✅ Email sent successfully via SendGrid!');
         res.status(200).json({ success: true, message: 'Email sent successfully!' });
 
     } catch (error) {
         console.error('❌ Error sending email:', error.message);
         console.error('Full error:', error);
         
-        // Send more detailed error to client
         let errorMessage = 'Failed to send email. ';
-        if (error.code === 'EAUTH') {
-            errorMessage += 'Invalid email credentials. Please check your SMTP settings.';
-        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
-            errorMessage += 'Cannot connect to email server. Please try again later.';
+        if (error.code === 403) {
+            errorMessage += 'SendGrid API key invalid or sender email not verified.';
         } else {
             errorMessage += error.message;
         }
@@ -112,6 +95,6 @@ app.post('/api/contact', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📧 SMTP configured: ${process.env.SMTP_USER || 'Not set'}`);
+    console.log(`📧 Email configured: SendGrid ${process.env.SENDGRID_API_KEY ? '✅' : '❌ (API key missing)'}`);
 });
 
