@@ -10,10 +10,21 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-const app = express()
+const app = express();
 
-app.use(cors())
-app.use(express.json())
+// Configure CORS to allow Vercel frontend
+app.use(cors({
+    origin: [
+        'https://flower-website-plum.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:3001'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend'))); 
 
 app.post('/api/contact', async (req, res) => {
