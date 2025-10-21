@@ -21,7 +21,7 @@ form.addEventListener('submit', async (e) => {
     }
 
     try {
-        const response = await fetch('https://flower-website-k7gh.onrender.com/api/contact', {
+        const response = await fetch('https://flower-website-0a6m.onrender.com/api/contact', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
