@@ -18,19 +18,22 @@ if (process.env.SENDGRID_API_KEY) {
 const app = express();
 
 // Configure CORS to allow Vercel frontend
-app.use(cors({
+app.use(
+  cors({
     origin: [
-        'https://flower-website-plum.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:3001'
+      'https://flower-website-plum.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3001/',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend'))); 
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 app.post('/api/contact', async (req, res) => {
     const { name, email, phone, message, subject } = req.body;
@@ -42,7 +45,7 @@ app.post('/api/contact', async (req, res) => {
 
     try {
         console.log('📧 Preparing to send email via SendGrid...');
-        
+
         const msg = {
             to: process.env.TO_EMAIL,
             from: process.env.SENDGRID_FROM_EMAIL, // Must be verified in SendGrid
@@ -79,14 +82,14 @@ app.post('/api/contact', async (req, res) => {
     } catch (error) {
         console.error('❌ Error sending email:', error.message);
         console.error('Full error:', error);
-        
+
         let errorMessage = 'Failed to send email. ';
         if (error.code === 403) {
             errorMessage += 'SendGrid API key invalid or sender email not verified.';
         } else {
             errorMessage += error.message;
         }
-        
+
         res.status(500).json({ success: false, message: errorMessage });
     }
 });
@@ -97,4 +100,3 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📧 Email configured: SendGrid ${process.env.SENDGRID_API_KEY ? '✅' : '❌ (API key missing)'}`);
 });
-
